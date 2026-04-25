@@ -54,7 +54,13 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             ${className}
           `}
           {...inputProps}
-          onChange={(event) => onChange?.(event.target.value as never)}
+          onChange={(event) => {
+            if (props.name) {
+              onChange?.(event);
+            } else {
+              onChange?.(event.target.value as never);
+            }
+          }}
         />
         
         <div className="min-h-[1.25rem]">

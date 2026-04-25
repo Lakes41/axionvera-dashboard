@@ -8,7 +8,8 @@ jest.mock("@stellar/freighter-api", () => ({
   isConnected: jest.fn(async () => true),
   isAllowed: jest.fn(async () => true),
   setAllowed: jest.fn(async () => undefined),
-  getPublicKey: jest.fn(async () => "GCONNECTEDPUBLICKEY")
+  getPublicKey: jest.fn(async () => "GCONNECTEDPUBLICKEY"),
+  getNetwork: jest.fn(async () => "TESTNET")
 }));
 
 describe("useWallet", () => {

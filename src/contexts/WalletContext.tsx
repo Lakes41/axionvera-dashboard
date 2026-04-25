@@ -8,7 +8,8 @@ import React, {
   ReactNode,
   useRef,
 } from "react";
-import { StellarNetwork, NETWORK, HORIZON_URL } from "@/utils/networkConfig";
+import { StellarNetwork, NETWORK } from "@/utils/networkConfig";
+import { notify } from "@/utils/notifications";
 
 type WalletType = "freighter" | "albedo";
 
@@ -71,15 +72,6 @@ async function fetchBalance(
   }
 }
 
-function setWalletCookie() {
-  document.cookie = "hasWallet=true; path=/; SameSite=Lax";
-}
-
-function clearWalletCookie() {
-  document.cookie = "hasWallet=; path=/; max-age=0";
-}
-
-
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>({
     address: null,
@@ -125,7 +117,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const currentAddress = await freighter.getPublicKey();
           const currentNetwork = await freighter.getNetwork();
 
-          // Map Freighter network names to our StellarNetwork type
           const networkMap: Record<string, StellarNetwork> = {
             PUBLIC: "mainnet",
             TESTNET: "testnet",
@@ -144,9 +135,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               network: mappedNetwork,
             }));
           }
-        } else if (state.walletType === "albedo") {
-          // Albedo doesn't provide network info, so we use the configured network
-          // We can't poll for address changes with Albedo
         }
       } catch {
         // Ignore polling errors
@@ -163,36 +151,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [state.address, state.walletType, state.network]);
 
-  // Check for existing Freighter connection on mount
+  // Check for existing connection on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (typeof window === "undefined") return;
       try {
         const freighter = await loadFreighter();
-        const connected = await freighter.isConnected();
-        if (!connected) return;
-        const allowed = await freighter.isAllowed();
-        if (!allowed) return;
-        const address = await freighter.getPublicKey();
-        const network = await freighter.getNetwork();
+        if (await freighter.isConnected() && await freighter.isAllowed()) {
+          const address = await freighter.getPublicKey();
+          const network = await freighter.getNetwork();
 
-        const networkMap: Record<string, StellarNetwork> = {
-          PUBLIC: "mainnet",
-          TESTNET: "testnet",
-          FUTURENET: "futurenet",
-        };
+          const networkMap: Record<string, StellarNetwork> = {
+            PUBLIC: "mainnet",
+            TESTNET: "testnet",
+            FUTURENET: "futurenet",
+          };
 
-        const mappedNetwork = networkMap[network] ?? "testnet";
+          const mappedNetwork = networkMap[network] ?? "testnet";
 
-        if (!cancelled) {
-          setState((s) => ({
-            ...s,
-            address,
-            network: mappedNetwork,
-            walletType: "freighter",
-            error: null,
-          }));
+          if (!cancelled) {
+            setState((s) => ({
+              ...s,
+              address,
+              network: mappedNetwork,
+              walletType: "freighter",
+              error: null,
+            }));
+          }
         }
       } catch {
         if (!cancelled) {
@@ -212,13 +198,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (typeof window === "undefined")
         throw new Error("Wallet is only available in the browser.");
 
+      let address: string;
+      let mappedNetwork: StellarNetwork = NETWORK;
+
       if (walletType === "freighter") {
         const freighter = await loadFreighter();
-        const connected = await freighter.isConnected();
-        if (!connected)
-          throw new Error(
-            "Freighter wallet not detected. Please install the Freighter extension.",
-          );
+        if (!(await freighter.isConnected())) {
+          throw new Error("Freighter wallet not detected.");
+        }
         await freighter.setAllowed();
         address = await freighter.getPublicKey();
         const network = await freighter.getNetwork();
@@ -228,38 +215,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           TESTNET: "testnet",
           FUTURENET: "futurenet",
         };
-
-        const mappedNetwork = networkMap[network] ?? "testnet";
-
-        setState({
-          address,
-          network: mappedNetwork,
-          balance: null,
-          isConnecting: false,
-          error: null,
-          walletType: "freighter",
-        });
+        mappedNetwork = networkMap[network] ?? "testnet";
       } else if (walletType === "albedo") {
         const albedo = await loadAlbedo();
         const result = await albedo.publicKey({});
-        const address = result.pubkey;
-
-        // Albedo doesn't provide network info, use configured network
-        setState({
-          address,
-          network: NETWORK,
-          balance: null,
-          isConnecting: false,
-          error: null,
-          walletType: "albedo",
-        });
+        address = result.pubkey;
+        mappedNetwork = NETWORK;
+      } else {
+        throw new Error("Unsupported wallet type");
       }
 
-      setState({ address, network: mappedNetwork, balance: null, isConnecting: false, error: null, walletType });
+      setState({
+        address,
+        network: mappedNetwork,
+        balance: null,
+        isConnecting: false,
+        error: null,
+        walletType,
+      });
+
       notify.success('Wallet Connected', `Successfully connected to ${walletType} wallet.`);
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to connect wallet.";
+      const message = e instanceof Error ? e.message : "Failed to connect wallet.";
       setState((s) => ({
         ...s,
         isConnecting: false,
@@ -267,35 +244,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         error: message,
         walletType: null,
       }));
+      notify.error('Connection Failed', message);
     }
   }, []);
 
   const disconnect = useCallback(() => {
-    // Stop background polling immediately
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
 
-    // Clear any cached data from localStorage to prevent data leakage
-    // (covers public key, balance, and transaction history caches)
-    const CACHE_KEYS = [
-      "axionvera:publicKey",
-      "axionvera:balance",
-      "axionvera:transactions",
-      "axionvera:walletType",
-      "axionvera:network",
-    ];
-    CACHE_KEYS.forEach((key) => {
-      try {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-      } catch {
-        // Storage may be unavailable in some environments – ignore silently
-      }
-    });
-
-    // Reset all wallet state
     setState({
       address: null,
       network: NETWORK,
@@ -304,12 +262,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       error: null,
       walletType: null,
     });
+    
+    notify.success('Wallet Disconnected', 'You have been disconnected from your wallet.');
   }, []);
 
   const value = useMemo<WalletContextType>(
     () => ({
       address: state.address,
-      publicKey: state.address, // Expose publicKey as alias for address
+      publicKey: state.address,
       network: state.network,
       balance: state.balance,
       isConnected,
@@ -319,17 +279,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       connect,
       disconnect,
     }),
-    [
-      state.address,
-      state.network,
-      state.balance,
-      isConnected,
-      state.isConnecting,
-      state.error,
-      state.walletType,
-      connect,
-      disconnect,
-    ],
+    [state, isConnected, connect, disconnect],
   );
 
   return (
@@ -340,11 +290,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 export function useWalletContext() {
   const context = useContext(WalletContext);
   if (context === undefined) {
-    throw new Error("useWallet must be used within a WalletProvider");
+    throw new Error("useWalletContext must be used within a WalletProvider");
   }
   return context;
 }
 
-// Keep useWallet as a deprecated alias to facilitate refactoring
-/** @deprecated Use useWalletContext instead */
 export const useWallet = useWalletContext;
