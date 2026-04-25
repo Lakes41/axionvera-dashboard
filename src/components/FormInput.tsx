@@ -1,9 +1,10 @@
 import { forwardRef } from 'react';
 import { FormFieldError } from '@/hooks/useFormValidation';
 
+// Support both our custom validation and react-hook-form
 export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string | React.ReactNode;
-  error?: FormFieldError;
+  error?: FormFieldError | { message?: string };
   touched?: boolean;
   helperText?: React.ReactNode;
   children?: React.ReactNode;
@@ -11,8 +12,11 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
 
 export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
   ({ label, error, touched, helperText, children, className = '', ...props }, ref) => {
-    const hasError = error?.hasError && touched;
-    const shouldShowError = hasError && error?.message;
+    // Determine error state from either our custom hook or react-hook-form
+    const hasError = error ? (('hasError' in error) ? (error.hasError && touched) : true) : false;
+    const errorMessage = error?.message;
+    const shouldDisplayError = !!(hasError && errorMessage);
+    
     const { onChange, ...inputProps } = props;
 
     const inputId = props.id || `input-${label?.toString().toLowerCase().replace(/\s+/g, '-')}`;
@@ -37,7 +41,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
           ref={ref}
           id={inputId}
           aria-invalid={hasError ? "true" : "false"}
-          aria-describedby={`${shouldShowError ? errorId : ''} ${helperText ? helperId : ''}`.trim() || undefined}
+          aria-describedby={`${shouldDisplayError ? errorId : ''} ${helperText ? helperId : ''}`.trim() || undefined}
           className={`
             w-full rounded-xl border px-4 py-3 text-sm text-text-primary 
             transition-all duration-200
@@ -54,8 +58,8 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
         />
         
         <div className="min-h-[1.25rem]">
-          {shouldShowError ? (
-            <p id={errorId} className="text-xs text-red-500 dark:text-red-400 font-medium">{error.message}</p>
+          {shouldDisplayError ? (
+            <p id={errorId} className="text-xs text-red-500 dark:text-red-400 font-medium">{errorMessage}</p>
           ) : helperText && !touched ? (
             <p id={helperId} className="text-xs text-text-muted">{helperText}</p>
           ) : null}
