@@ -6,14 +6,15 @@ jest.mock('../env', () => ({
 
 describe('networkConfig', () => {
   beforeEach(() => {
-    jest.resetModules();
     (getEnv as jest.Mock).mockReset();
   });
 
   it('should use default values for testnet', () => {
     (getEnv as jest.Mock).mockReturnValue(undefined);
-    const nc = require('../networkConfig');
-    expect(nc.NETWORK).toBe('testnet');
+    jest.isolateModules(() => {
+      const nc = require('../networkConfig');
+      expect(nc.NETWORK).toBe('testnet');
+    });
   });
 
   it('should use mainnet values when configured', () => {
@@ -21,8 +22,10 @@ describe('networkConfig', () => {
       if (key === 'NEXT_PUBLIC_STELLAR_NETWORK') return 'mainnet';
       return undefined;
     });
-    const nc = require('../networkConfig');
-    expect(nc.NETWORK).toBe('mainnet');
+    jest.isolateModules(() => {
+      const nc = require('../networkConfig');
+      expect(nc.NETWORK).toBe('mainnet');
+    });
   });
 
   it('should use futurenet values when configured', () => {
@@ -30,8 +33,10 @@ describe('networkConfig', () => {
       if (key === 'NEXT_PUBLIC_STELLAR_NETWORK') return 'futurenet';
       return undefined;
     });
-    const nc = require('../networkConfig');
-    expect(nc.NETWORK).toBe('futurenet');
+    jest.isolateModules(() => {
+      const nc = require('../networkConfig');
+      expect(nc.NETWORK).toBe('futurenet');
+    });
   });
 
   it('should respect custom URLs from env', () => {
@@ -39,8 +44,10 @@ describe('networkConfig', () => {
       if (key === 'NEXT_PUBLIC_SOROBAN_RPC_URL') return 'https://custom-rpc.com';
       return undefined;
     });
-    const nc = require('../networkConfig');
-    expect(nc.SOROBAN_RPC_URL).toBe('https://custom-rpc.com');
+    jest.isolateModules(() => {
+      const nc = require('../networkConfig');
+      expect(nc.SOROBAN_RPC_URL).toBe('https://custom-rpc.com');
+    });
   });
 
   it('should respect custom contract IDs from env', () => {
@@ -48,7 +55,9 @@ describe('networkConfig', () => {
       if (key === 'NEXT_PUBLIC_AXIONVERA_VAULT_CONTRACT_ID') return 'VAULT123';
       return undefined;
     });
-    const nc = require('../networkConfig');
-    expect(nc.AXIONVERA_VAULT_CONTRACT_ID).toBe('VAULT123');
+    jest.isolateModules(() => {
+      const nc = require('../networkConfig');
+      expect(nc.AXIONVERA_VAULT_CONTRACT_ID).toBe('VAULT123');
+    });
   });
 });

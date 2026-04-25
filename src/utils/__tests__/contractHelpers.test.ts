@@ -58,24 +58,12 @@ describe('contractHelpers utility', () => {
     let sdk: any;
     const mockStorage: any = {};
 
-    beforeAll(() => {
-      if (typeof global.window === 'undefined') {
-          (global as any).window = {};
-      }
-      
-      (global.window as any).localStorage = {
-          getItem: jest.fn((key: string) => mockStorage[key] || null),
-          setItem: jest.fn((key: string, val: string) => { mockStorage[key] = val; }),
-      };
-      
+    beforeEach(() => {
+      sdk = createAxionveraVaultSdk();
+      window.localStorage.clear();
       (global as any).crypto = {
         randomUUID: () => 'test-uuid'
       };
-    });
-
-    beforeEach(() => {
-      sdk = createAxionveraVaultSdk();
-      Object.keys(mockStorage).forEach(key => delete mockStorage[key]);
     });
 
     it('should get balances (mocked)', async () => {
@@ -93,11 +81,11 @@ describe('contractHelpers utility', () => {
     });
 
     it('should withdraw (mocked)', async () => {
-      mockStorage['axionvera:vault:testnet:G_WIT'] = JSON.stringify({
+      window.localStorage.setItem('axionvera:vault:testnet:G_WIT', JSON.stringify({
         balance: '100',
         rewards: '0',
         txs: []
-      });
+      }));
       
       const tx = await sdk.withdraw({ walletAddress: 'G_WIT', network: 'testnet', amount: '40' });
       expect(tx.status).toBe('success');
@@ -107,11 +95,11 @@ describe('contractHelpers utility', () => {
     });
 
     it('should claim rewards (mocked)', async () => {
-      mockStorage['axionvera:vault:testnet:G_CLA'] = JSON.stringify({
+      window.localStorage.setItem('axionvera:vault:testnet:G_CLA', JSON.stringify({
         balance: '100',
         rewards: '10',
         txs: []
-      });
+      }));
       
       const tx = await sdk.claimRewards({ walletAddress: 'G_CLA', network: 'testnet' });
       expect(tx.status).toBe('success');
@@ -128,7 +116,7 @@ describe('contractHelpers utility', () => {
     });
     
     it('should handle malformed storage gracefully', async () => {
-        mockStorage['axionvera:vault:testnet:G_MAL'] = 'invalid-json';
+        window.localStorage.setItem('axionvera:vault:testnet:G_MAL', 'invalid-json');
         const balances = await sdk.getBalances({ walletAddress: 'G_MAL', network: 'testnet' });
         expect(balances.balance).toBe('0');
     });
