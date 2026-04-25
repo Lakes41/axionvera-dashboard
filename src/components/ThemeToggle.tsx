@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
