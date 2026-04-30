@@ -6,8 +6,8 @@ import { TransactionSkeleton } from './Skeletons';
 import { useMemo, useState } from "react";
 import { formatAmount, shortenAddress } from "@/utils/contractHelpers";
 import type { VaultTx, VaultTxType, VaultTxStatus } from "@/utils/contractHelpers";
+import CopyButton from "./CopyButton";
 import { TransactionSkeleton } from "./Skeletons";
-import { convertTransactionsToCSV, downloadCSV, generateFilename, getCSVSummary } from "@/utils/csvExport";
 
 type TransactionHistoryProps = {
   isConnected: boolean;
@@ -52,14 +52,14 @@ const TYPE_OPTIONS = [
   { value: "all", label: "All Types" },
   { value: "deposit", label: "Deposit" },
   { value: "withdraw", label: "Withdraw" },
-  { value: "claim", label: "Claim" },
+  { value: "claim", label: "Claim" }
 ];
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "success", label: "Success" },
   { value: "pending", label: "Pending" },
-  { value: "failed", label: "Failed" },
+  { value: "failed", label: "Failed" }
 ];
 
 // Mock data for testing CSV export
@@ -149,11 +149,6 @@ const MOCK_TRANSACTIONS: VaultTx[] = [
 function statusStyles(status: VaultTx["status"]) {
   if (status === "success") return "border-emerald-900/50 bg-emerald-950/30 text-emerald-200";
   if (status === "failed") return "border-rose-900/50 bg-rose-950/30 text-rose-200";
-function statusStyles(status: VaultTxStatus) {
-  if (status === "success")
-    return "border-emerald-900/50 bg-emerald-950/30 text-emerald-200";
-  if (status === "failed")
-    return "border-rose-900/50 bg-rose-950/30 text-rose-200";
   return "border-border-primary bg-background-secondary/30 text-text-primary";
 }
 
@@ -172,36 +167,20 @@ export default function TransactionHistory({
   isLoading: externalIsLoading,
   transactions: externalTransactions,
   onClaimRewards,
-  isClaiming,
+  isClaiming
 }: TransactionHistoryProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 }: Props) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [isExporting, setIsExporting] = useState(false);
-  const [useMockData, setUseMockData] = useState(false); // Toggle for mock data testing
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  // Use mock data when testing, otherwise use real data
-  const transactions = useMemo(() => {
-    if (useMockData) {
-      return MOCK_TRANSACTIONS;
-    }
-    return externalTransactions;
-  }, [useMockData, externalTransactions]);
-
-  const isLoading = useMemo(() => {
-    if (useMockData) {
-      return false; // Mock data is never "loading"
-    }
-    return externalIsLoading;
-  }, [useMockData, externalIsLoading]);
-
-  // FILTER
-  const filtered = useMemo(() => {
+  const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-      if (statusFilter !== 'all' && tx.status !== statusFilter) return false;
+      if (typeFilter !== "all" && tx.type !== typeFilter) return false;
+      if (statusFilter !== "all" && tx.status !== statusFilter) return false;
       return true;
     });
   }, [transactions, typeFilter, statusFilter]);
@@ -222,12 +201,10 @@ export default function TransactionHistory({
   }, [filteredTransactions, sortKey, sortDirection]);
 
   const hasActiveFilter = typeFilter !== "all" || statusFilter !== "all";
-  
-  const summary = useMemo(() => getCSVSummary(transactions), [transactions]);
 
   const toggleSort = (nextKey: SortKey) => {
     if (sortKey === nextKey) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      setSortDirection((previousDirection) => (previousDirection === "asc" ? "desc" : "asc"));
       return;
     }
     setSortKey(nextKey);
@@ -241,35 +218,9 @@ export default function TransactionHistory({
     setCurrentPage((p) => Math.min(p, totalPages));
   }, [totalPages]);
 
-  const currentItems = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return sorted.slice(start, start + PAGE_SIZE);
-  }, [sorted, currentPage]);
-
-    setIsExporting(true);
-    
-    try {
-      // Convert filtered transactions to CSV
-      const csvContent = convertTransactionsToCSV(filteredTransactions);
-      
-      if (!csvContent) {
-        throw new Error("Failed to generate CSV content");
-      }
-      
-      // Generate dynamic filename with address and timestamp
-      const filename = generateFilename(useMockData ? "MOCK_DATA" : address);
-      
-      // Trigger download
-      downloadCSV(csvContent, filename);
-      
-      // Optional: Show success feedback
-      console.log(`Exported ${filteredTransactions.length} transactions to ${filename}`);
-    } catch (error) {
-      console.error("Failed to export CSV:", error);
-      // You could add a toast notification here
-    } finally {
-      setIsExporting(false);
-    }
+  const clearFilters = () => {
+    setTypeFilter("all");
+    setStatusFilter("all");
   };
 
   return (
@@ -279,16 +230,7 @@ export default function TransactionHistory({
         <div>
           <div className="text-sm font-semibold text-text-primary">Transaction history</div>
           <div className="mt-1 text-xs text-text-muted">
-            {isConnected && publicKey
-              ? `Recent vault activity for ${truncateAddress(publicKey)}`
-              : 'Connect a wallet to view history.'}
-              ? `Recent vault activity for ${shortenAddress(publicKey, 6)}`
-              : "Connect a wallet to view history."}
-            {isConnected && address && !useMockData 
-              ? `Recent vault activity for ${shortenAddress(address, 6)}` 
-              : useMockData 
-                ? "📊 TEST MODE: Using mock transaction data"
-                : "Connect a wallet to view history."}
+            {isConnected && publicKey ? `Recent vault activity for ${shortenAddress(publicKey, 6)}` : "Connect a wallet to view history."}
           </div>
           {/* Show summary stats when there are transactions */}
           {transactions.length > 0 && (
@@ -376,7 +318,7 @@ export default function TransactionHistory({
           type="button"
           onClick={onClaimRewards}
           disabled={!isConnected || isClaiming}
-          aria-label={isClaiming ? 'Claiming rewards' : 'Claim your earned rewards'}
+          aria-label={isClaiming ? "Claiming rewards" : "Claim your earned rewards"}
           className="rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isClaiming ? 'Claiming...' : 'Claim Rewards'}
@@ -385,14 +327,7 @@ export default function TransactionHistory({
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label htmlFor="type-filter" className="text-xs text-text-muted">
-            Type
-          </label>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-xs text-text-muted">
-          Type
+          <label htmlFor="type-filter" className="text-xs text-text-muted">Type</label>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
@@ -404,12 +339,7 @@ export default function TransactionHistory({
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="status-filter" className="text-xs text-text-muted">
-            Status
-          </label>
-        </label>
-        <label className="flex items-center gap-2 text-xs text-text-muted">
-          Status
+          <label htmlFor="status-filter" className="text-xs text-text-muted">Status</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
@@ -424,157 +354,25 @@ export default function TransactionHistory({
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-white/15"
-          >
-            Reset Filters
-          </button>
-        ) : null}
             aria-label="Clear all transaction filters"
             className="text-xs text-axion-400 transition hover:text-axion-300 focus:outline-none focus:underline"
-            onClick={() => { setTypeFilter("all"); setStatusFilter("all"); }}
-            aria-label="Clear all transaction filters"
-            className="text-xs text-axion-400 transition hover:text-axion-300 focus:outline-none focus:underline"
-            onClick={() => {
-              setTypeFilter('all');
-              setStatusFilter('all');
-            }}
-            className="text-xs text-axion-400 transition hover:text-axion-300"
           >
             Clear filters
           </button>
         ) : null}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              aria-label="Open filter options"
-              aria-expanded={isFilterOpen}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                hasActiveFilter
-                  ? "bg-axion-500/20 text-axion-400 hover:bg-axion-500/30"
-                  : "bg-white/10 text-text-primary hover:bg-white/15"
-              }`}
-            >
-              Filter {hasActiveFilter ? "•" : ""}
-            </button>
-            <FilterPopover isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)}>
-              <div className="space-y-4">
-                <div className="border-b border-border-primary pb-3">
-                  <h3 className="text-sm font-semibold text-text-primary">Filter Transactions</h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="type-filter" className="mb-1.5 block text-xs text-text-muted">Type</label>
-                    <select
-                      id="type-filter"
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-                      className={`${selectClassName} w-full`}
-                      aria-label="Filter transactions by type"
-                    >
-                      {TYPE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="status-filter" className="mb-1.5 block text-xs text-text-muted">Status</label>
-                    <select
-                      id="status-filter"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                      className={`${selectClassName} w-full`}
-                      aria-label="Filter transactions by status"
-                    >
-                      {STATUS_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label htmlFor="start-date" className="mb-1.5 block text-xs text-text-muted">Start Date</label>
-                      <input
-                        id="start-date"
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className={selectClassName}
-                        aria-label="Filter transactions from date"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="end-date" className="mb-1.5 block text-xs text-text-muted">End Date</label>
-                      <input
-                        id="end-date"
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className={selectClassName}
-                        aria-label="Filter transactions to date"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {hasActiveFilter ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    aria-label="Clear all transaction filters"
-                    className="w-full rounded-lg border border-border-primary px-3 py-2 text-xs font-medium text-text-secondary transition hover:bg-background-secondary/60 hover:text-text-primary"
-                  >
-                    Clear Filters
-                  </button>
-                ) : null}
-              </div>
-            </FilterPopover>
-          </div>
-        </div>
-      {/* FILTERS */}
-      <div className="flex gap-3 mb-4">
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-          className="rounded bg-background-secondary px-2 py-1"
-        >
-          {TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="rounded bg-background-secondary px-2 py-1"
-        >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
       </div>
 
-      <div
-        className="mt-5 overflow-hidden rounded-2xl border border-border-primary"
-        role="table"
-        aria-label="Transaction History"
-      >
       <div className="mt-5 overflow-hidden rounded-2xl border border-border-primary" role="table" aria-label="Transaction History">
-        <div
-          className="grid grid-cols-[1.2fr_1fr_1fr_0.9fr] gap-3 bg-background-secondary/20 px-4 py-3 text-xs text-text-secondary font-semibold"
-          role="row"
-        >
-          <div role="columnheader">Type</div>
-          <div role="columnheader">Amount</div>
-          <div role="columnheader">Created</div>
+        <div className="grid grid-cols-[1.1fr_1fr_1.2fr_1fr] gap-3 bg-background-secondary/20 px-4 py-3 text-xs font-semibold text-text-secondary" role="row">
+          <button type="button" role="columnheader" onClick={() => toggleSort("createdAt")} className="text-left">
+            Type
+          </button>
+          <button type="button" role="columnheader" onClick={() => toggleSort("amount")} className="text-left">
+            Amount {sortIcon(sortKey === "amount", sortDirection)}
+          </button>
+          <button type="button" role="columnheader" onClick={() => toggleSort("createdAt")} className="text-left">
+            Created {sortIcon(sortKey === "createdAt", sortDirection)}
+          </button>
           <div role="columnheader">Status</div>
       <div className="mt-5 overflow-hidden rounded-2xl border border-border-primary">
         <div className="grid grid-cols-[1.2fr_1fr_1fr_0.9fr] gap-3 bg-background-secondary/20 px-4 py-3 text-xs text-text-secondary">
@@ -586,14 +384,10 @@ export default function TransactionHistory({
         <div className="divide-y divide-border-primary">
           {isLoading ? (
             <TransactionSkeleton />
-          ) : filteredTransactions.length === 0 ? (
+          ) : sortedTransactions.length === 0 ? (
             <div className="px-4 py-6 text-sm text-text-secondary" role="row">
               <div role="cell" className="col-span-4">
-                {hasActiveFilter
-                  ? 'No transactions match the selected filters.'
-                  : 'No transactions yet.'}
-                  ? "No transactions match the selected filters."
-                  : "No transactions yet."}
+                {hasActiveFilter ? "No transactions match the selected filters." : "No transactions yet."}
               </div>
             <div className="px-4 py-6 text-sm text-text-secondary">
               {hasActiveFilter ? "No transactions match the selected filters." : "No transactions yet."}
@@ -602,12 +396,13 @@ export default function TransactionHistory({
             sortedTransactions.map((tx) => (
               <div
                 key={tx.id}
-                className="grid grid-cols-[1.2fr_1fr_1fr_0.9fr] items-center gap-3 px-4 py-3 text-sm"
+                className="grid grid-cols-[1.1fr_1fr_1.2fr_1fr] items-center gap-3 px-4 py-3 text-sm"
+                role="row"
               >
-                <div className="text-text-primary">{typeLabel(tx.type)}</div>
-                <div className="text-text-primary">{formatAmount(tx.amount)}</div>
-                <div className="text-text-muted">{new Date(tx.createdAt).toLocaleString()}</div>
-                <div>
+                <div className="text-text-primary" role="cell">{typeLabel(tx.type)}</div>
+                <div className="text-text-primary" role="cell">{formatAmount(tx.amount)}</div>
+                <div className="text-text-muted" role="cell">{new Date(tx.createdAt).toLocaleString()}</div>
+                <div role="cell">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyles(tx.status)}`}>
                     {tx.status}
                   </span>
@@ -621,21 +416,9 @@ export default function TransactionHistory({
         </div>
       </div>
 
-      {hasActiveFilter && !isLoading ? (
+      {hasActiveFilter && !isLoading && sortedTransactions.length > 0 ? (
         <div className="mt-3 text-xs text-text-muted">
           Showing {sortedTransactions.length} of {transactions.length} transactions
-      {hasActiveFilter && !isLoading && filteredTransactions.length > 0 ? (
-        <div className="mt-3 text-xs text-text-muted flex justify-between items-center">
-          <span>Showing {filteredTransactions.length} of {transactions.length} transactions</span>
-          {filteredTransactions.length > 0 && (
-            <button
-              onClick={handleExportCSV}
-              disabled={isExporting}
-              className="text-xs text-axion-400 hover:text-axion-300 transition"
-            >
-              Export filtered results
-            </button>
-          )}
         </div>
       ) : null}
 

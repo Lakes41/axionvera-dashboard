@@ -13,6 +13,7 @@ type BalanceCardProps = {
   publicKey: string | null;
   balance: string;
   rewards: string;
+  assetSymbol: string;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => Promise<void>;
@@ -25,6 +26,7 @@ export default function BalanceCard({
   publicKey,
   balance,
   rewards,
+  assetSymbol,
   isLoading,
   error,
   onRefresh,
@@ -117,7 +119,7 @@ export default function BalanceCard({
                 </AppTooltip>
               </div>
               <div className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
-                {formatAmount(balance)}
+                {formatAmount(balance)} {assetSymbol}
               </div>
             </>
           )}
@@ -137,7 +139,7 @@ export default function BalanceCard({
             <>
               <div className="text-xs text-text-muted">Pending Rewards</div>
               <div className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-                {formatAmount(rewards)}
+                {formatAmount(rewards)} {assetSymbol}
               </div>
               <div className="mt-1 text-xs text-text-muted">
                 Claim rewards to add them to your balance.
